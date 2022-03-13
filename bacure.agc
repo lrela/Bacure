@@ -1,4 +1,4 @@
-// version 0.9.1 2. Feb 2018
+// version 0.9 13 13 Mar 2022
 
 /*
 
@@ -70,6 +70,16 @@ global GLOBAL_LOGGER_ENABLED as string = TRUE
 // internal logging
 #constant BACLOG = "bacure.log"
 
+// read file to string
+function ReadFile(filename$, linesep$)
+	file = OpenToRead(filename$)
+	data$ = ""
+	while FileEOF(file) <> 1
+		data$ = data$ + ReadLine(file) + linesep$
+	endwhile
+	CloseFile(file)
+endfunction data$
+
 type Map
 	keys as string[]
 	values as string[]
@@ -100,8 +110,7 @@ function MapPutStr(map ref as Map, key$, value$)
 endfunction
 
 function MapHasKey(map ref as Map, key$)
-	keyidx = _MapGetKeyIdx(map, key$)
-	if(keyidx = -1) then exitfunction FALSE
+	if(_MapGetKeyIdx(map, key$) = -1) then exitfunction FALSE
 endfunction TRUE
 
 function _MapGetKeyIdx(map ref as Map, key$)
@@ -109,21 +118,13 @@ function _MapGetKeyIdx(map ref as Map, key$)
 		if map.keys[i] = key$ then exitfunction i
 	next
 endfunction -1
-
-// array.find is broken?
-function _MapGetKeyIdxZZZ(map ref as Map, key$)
-	i as integer
-	keys as string[]
-	keys = map.keys
-	i = keys.find(key$)
-	//exitfunction i
-endfunction i
-
+	
 function MapGetInt(map ref as Map, key$)
 	v = Val(MapGet(map, key$))
 endfunction v
 
 function MapGetFloat(map ref as Map, key$)
+	v as float
 	v = ValFloat(MapGet(map, key$))
 endfunction v
 
@@ -155,18 +156,34 @@ function MapRemove(map ref as Map, key$)
 endfunction TRUE
 
 function MapRemoveAll(map ref as Map)
-	map.keys.length = 0
-	map.values.length = 0
+	map.keys.length = -1
+	map.values.length = -1
 endfunction
-/*
-function Map2Str(map ref as Map)
-	s$="("
-	for i = 0 to map.keys.length
-		s$ = s$ + "'" + map.keys[i] +"'='"+ map.values[i] + "', "
+
+function MapSortByIntValue(m ref as Map, ascbool$)
+
+	for i = m.keys.length to 1 step -1
+		for j = 0 to i-1
+			//if val(m.values[j]) < val(m.values[j+1])
+			if _IsAGreaterThanB(Val(m.values[j]), Val(m.values[j+1]), ascbool$) = TRUE
+				tmpval$ = m.values[j]
+				m.values[j] = m.values[j+1]
+				m.values[j+1] = tmpval$
+
+				tmpkey$ = m.keys[j]
+				m.keys[j] = m.keys[j+1]
+				m.keys[j+1] = tmpkey$
+						
+			endif
+		next
 	next	
-	s$ = s$ + ")"
-endfunction s$
-*/
+endfunction
+
+function _IsAGreaterThanB(a, b, reverse$)
+	if reverse$ = TRUE and a > b then exitfunction TRUE
+	if reverse$ = FALSE and a < b then exitfunction TRUE
+endfunction FALSE
+
 function SetToPrintable(set ref as Set)
 	str$=""
 	for i = 0 to set.values.length
@@ -185,10 +202,11 @@ function MapGetType(map ref as Map, key$)
 endfunction typ$
 
 function MapGetSize(map ref as Map)
-endfunction map.keys.length
+endfunction map.keys.length+1
 
 function SetGetSize(set ref as Set)
-endfunction set.values.length
+endfunction set.values.length+1
+
 
 /*
  Type guess functionality for string content
@@ -226,7 +244,7 @@ function GetValueType(s$)
 		a = asc(c$)
 		if IsNumber(a) = TRUE
 			hasNumber$ = TRUE
-		elseif a = 46 // point found
+		elseif a = 46 // point '.' found
 			// TODO handle float like .1 = 0.1
 			inc pointCount, 1
 			if pointCount > 1 then exitfunction TYPE_STRING
@@ -248,6 +266,20 @@ endfunction TYPE_STRING
 function IsEmptyOrNull(t$)
 	if t$ = "" or t$ = NULL_VAL then exitfunction TRUE
 endfunction FALSE
+
+function MapToStr(map ref as Map)
+	str$ = ""
+	for i = 0 to map.keys.length
+		key$ = map.keys[i]
+		value$ = map.values[i]
+		
+		str$ = str$ + key$ + "=" + value$
+		
+		if i < map.keys.length then str$ = str$ + ", "
+		
+	next
+endfunction str$
+
 
 /*
  Map (de)serialization
@@ -328,9 +360,7 @@ endfunction
 
 function SetHasValue(set ref as Set, value$)
 	keyidx = _SetGetValueIdx(set, value$)
-	if(keyidx = -1)
-		exitfunction FALSE
-	endif
+	if(keyidx = -1) then exitfunction FALSE
 endfunction TRUE
 
 function _SetGetValueIdx(set ref as Set, value$)
@@ -346,6 +376,7 @@ function SetGetInt(set ref as Set, value$)
 endfunction v
 
 function SetGetFloat(set ref as Set, value$)
+	v as float
 	v = ValFloat(SetGet(set, value$))
 endfunction v
 
@@ -371,7 +402,7 @@ function SetRemove(set ref as Set, value$)
 endfunction TRUE
 
 function SetRemoveAll(set ref as Set)
-	set.values.length = 0
+	set.values.length = -1
 endfunction
 
 // returns proper TYPE_xxx constant or NULL_VAL if no key/value not found
@@ -407,7 +438,7 @@ function InitLog(file$, loglevel, appendbool$, timeformat$)
 	if loglevel >= LOG_NONE or loglevel < LOG_ERROR then exitfunction
 
 	// check if logger level names array needs to be initialized
-	if LOGGER_LEVEL_NAMES.length = 0 
+	if LOGGER_LEVEL_NAMES.length = 0  //
 		LOGGER_LEVEL_NAMES.length = 6
 		LOGGER_LEVEL_NAMES[LOG_ERROR] = "ERROR"
 		LOGGER_LEVEL_NAMES[LOG_WARN] = "WARN"
@@ -425,6 +456,7 @@ function InitLog(file$, loglevel, appendbool$, timeformat$)
 	if appendbool$ = TRUE then append = 1 else append = 0
 	fileid = OpenToWrite(file$, append)
 	MapPutInt(LOGGER_FILEIDS_BY_FILE, file$, fileid)
+	CloseFile(fileid)
 	
 	//info("*** Bacure logging initialized with level " + LOGGER_LEVEL_NAMES[LOGGER_LEVEL] + " ***")
 endfunction
@@ -451,7 +483,9 @@ function _WriteLog(file$, level, msg$)
 	endif
 
 	fileid = MapGetInt(LOGGER_FILEIDS_BY_FILE, file$)
+	OpenToWrite(fileid, file$, 1)
 	WriteLine(fileid, msg$)
+	CloseFile(fileid)
 
 endfunction
 
@@ -565,6 +599,8 @@ function TgfParseFile(file$)
 	CloseFile(tgfFile)
 endfunction graphs
 
+
+
 /*
  Stack
 */
@@ -638,14 +674,8 @@ function _XmlStr(s$)
 endfunction s$
 
 function XmlParseFile(filename$)
-	file = OpenToRead(filename$)
-	data$ = ""
-	while FileEOF(file) <> 1
-		data$ = data$ + ReadLine(file) + " "
-	endwhile
-	CloseFile(file)
 	document as XmlElement[]
-	document = XmlParseDocument(data$)
+	document = XmlParseDocument(ReadFile(filename$, ""))
 endfunction document
 
 function XmlParseDocument(data as string)
@@ -656,6 +686,7 @@ function XmlParseDocument(data as string)
 	debug(BACLOG, "XmlParseDocument " + str(tokenNum) + " tokens found")
 	for i = 1 to tokenNum
 		token$ = GetStringToken(data, "<", i)
+		trace(BACLOG, "Parsed token:"+token$)
 		e = _XmlParseElement(token$)
 		name$ = e.name
 		debug(BACLOG, "XmlParseDocument found element:" + name$)
@@ -711,9 +742,6 @@ function _XmlParseElement(x as string)
 	if(wsIdx = 0)
 		// the element does not have attributes so parse only a tag name
 		
-		e.name = tmp$
-
-		trace(BACLOG, "_XmlParseElement element '"+e.name+"' has no attributes")
 		//tmp$ = ""
 		il = Len(x)
 		for i = 1 to il
@@ -723,7 +751,12 @@ function _XmlParseElement(x as string)
 			endif
 		next
 
-		debug(BACLOG, "_XmlParseElement returning new element '" + e.name + "'")
+		e.name = tmp$
+
+		//debug(BACLOG, "_XmlParseElement found new element '" + e.name + "'")
+		trace(BACLOG, "_XmlParseElement element has no attributes")
+		lll$ = "len=" + str(e.attributes.keys.length)
+		trace(BACLOG, lll$)
 
 		exitfunction e
 	else
@@ -923,16 +956,16 @@ endtype
 
 type D3Answer
 	targetid as string
-	need as string
-	not_ as string
+	need as Set
+	not_ as Set
 	answer as D3Text
 	userdata as string
 endtype
 
 type D3Card
 	id as string
-	settags as string
-	cleartags as string
+	settags as Set
+	cleartags as Set
 	userdata as string
 	question as D3Text
 	answers as D3Answer[]
@@ -944,7 +977,78 @@ type D3Deck
 	cards as D3Card[]
 endtype
 
-function D3ParseDeck(filename$) 
+// keep all decks in memory?
+global _decks as D3Deck[]
+global _deckIdx as integer
+global _card as D3Card
+global _d3tags as Set
+
+// returns TRUE if mytags will pass 
+function D3PassTags(mytags as Set, need as Set, not_ as Set)
+	if(SetGetSize(need) > 0)
+		needtagspass$ = FALSE
+		// this needs some tags
+		for i = 0 to mytags.values.length
+			mytag$ = mytags.values[i]
+			if(SetHasValue(need, mytag$) = FALSE) then needtagspass$ = TRUE
+		next
+		if(needtagspass$ = FALSE) then exitfunction FALSE
+	endif
+		
+	for i = 0 to mytags.values.length
+		// check not-tags
+		mytag$ = mytags.values[i]
+		if(SetHasValue(not_, mytag$) = TRUE) then exitfunction FALSE
+	next
+endfunction TRUE
+
+function D3InitCard(id$)
+	for i = 0 to _decks.length
+		if(_decks[i].id = id$)
+			_deckIdx = i
+			_card = _decks[_deckIdx].cards[0]			
+			//handle tags
+			exitfunction TRUE
+		endif		
+	next
+endfunction FALSE
+
+function D3GetQuestion()
+endfunction _card.question.data
+
+function D3GetAnswers()
+	answers as string[]
+	answers.length = _card.answers.length
+	for i = 0 to _card.answers.length
+		// TODO filter answers based on need, not, userdata ...
+		answers[i] = _card.answers[i].answer.data
+	next
+endfunction answers
+
+//  sets new card
+function D3Answer(answerIdx as integer)
+	targetId$ = _card.answers[answerIdx].targetid
+	D3InitCard(targetId$)
+endfunction
+
+function D3XmlStrToTags(str as string)
+	c = CountStringTokens(str, " ")
+	tags as Set
+	for i = 0 to c
+		tag$ = GetStringToken(str, " ", c)
+		tag$ = TrimString(str, " ")
+		if(tag$ <> "") then SetPut(tags, tag$)
+	next
+		
+endfunction tags
+
+function D3LoadDeck(filename$)
+	deck as D3Deck
+	deck = D3ParseDeck(ReadFile(filename$, ""))
+endfunction	deck
+	
+function D3ParseDeck(content$)
+
 	deck as D3Deck
 	e as XmlElement[]
 
@@ -958,9 +1062,9 @@ function D3ParseDeck(filename$)
 	cardidx = -1
 	aidx = -1
 
-	e = XmlParseFile(filename$)
+	e = XmlParseDocument(content$)
 	
-	info(BACLOG, "D3ParseDeck parse file " + filename$)
+	//info(BACLOG, "D3ParseDeck parse file " + filename$)
 
 	for i = 0 to e.length
 		ename = Lower(e[i].name) // element name is now in low case
@@ -972,12 +1076,23 @@ function D3ParseDeck(filename$)
 			debug(BACLOG, "handling D3 element:" + ename)
 
 			if ename = "deck"
-				deck.id = MapGetStr(e[i].attributes, "id")
+				info(BACLOG, "handling D3 element:" + ename)
+				deck.id = MapGetStr(e[i].attributes, "id")				
+				// check if duplicate deck.id found
+				for ii = 0 to _decks.length
+					if(_decks[ii].id = deck.id)
+						error(BACLOG, "duplicate D3Deck id " + deck.id)
+					endif
+				next
 			elseif ename = "card"
 				aidx = -1
 				card.id = MapGetStr(e[i].attributes, "id")
-				card.settags = MapGet2(e[i].attributes, "set", "")
-				card.cleartags = MapGet2(e[i].attributes, "clear", "")
+				
+				tmp$ = MapGet2(e[i].attributes, "set", "")
+				card.settags = D3XmlStrToTags(tmp$)
+				tmp$ = MapGet2(e[i].attributes, "clear", "")
+				card.cleartags = D3XmlStrToTags(tmp$)
+				
 				deck.cards.insert(card)
 				inc cardidx, 1
 			elseif ename = "question"
@@ -1003,7 +1118,7 @@ function D3ParseDeck(filename$)
 					endcase
 				endselect
 				
-			elseif ename = "a"
+			elseif ename = "a" // answer
 				
 				for ii = 0 to e[i].attributes.keys.length
 					z$ = "attr:" + e[i].attributes.keys[ii] + "=" + e[i].attributes.values[ii]
@@ -1012,13 +1127,19 @@ function D3ParseDeck(filename$)
 
 				//card.id = MapGetStr(e[i].attributes, "id")
 				debug(BACLOG, "targetid idx=" + str(_MapGetKeyIdx(e[i].attributes, "targetid")))
+				
+				/*
 				tmp2$ = MapGetStr(e[i].attributes, "targetid")
 				a.targetid = tmp2$
-
 				debug(BACLOG, "zzzzz targetid="+tmp2$)
+				*/
+
+				tmp$ = MapGet2(e[i].attributes, "need", "")
+				a.need = D3XmlStrToTags(tmp$)
 				
-				a.need = MapGet2(e[i].attributes, "need", "")
-				a.not_ = MapGet2(e[i].attributes, "not", "")				
+				tmp$ = MapGet2(e[i].attributes, "not", "")
+				a.not_ = D3XmlStrToTags(tmp$)
+				
 				deck.cards[cardidx].answers.insert(a)
 				inc aidx, 1
 				
@@ -1066,8 +1187,6 @@ function D3ParseDeck(filename$)
 
 endfunction deck
 				
-
-
 
 
 /*
@@ -1488,7 +1607,13 @@ endfunction defval#
  */
 #include "bacure2xml.agc"
 
-function TmxParseFile(filename$) 
+function TmxParseFile(filename$)
+	m as TmxMap
+	info(BACLOG, "TmxParseFile parse file " + filename$)
+	m = TmxParse(ReadFile(filename$, CRLF))
+endfunction	m
+
+function TmxParse(data$) 
 	m as TmxMap
 	e as XmlElement[]
 	
@@ -1516,10 +1641,8 @@ function TmxParseFile(filename$)
 	imageLayerIdx = -1
 	terrainIdx = -1
 
-	e = XmlParseFile(filename$)
+	e = XmlParseDocument(data$)
 	
-	info(BACLOG, "TmxParseFile parse file " + filename$)
-
 	for i = 0 to e.length
 		ename = Lower(e[i].name) // element name is now in low case
 		if(e[i].isStartTag = TRUE)
@@ -1674,10 +1797,13 @@ function TmxParseFile(filename$)
 				Inc objIdx, 1
 			elseif(ename = "property")
 				// [map, tileset, layer, objectgroup, object] -> properties -> property
+
+				// default type for property is string				
+				if MapHasKey(e[i].attributes, "type") = FALSE then MapPut(e[i].attributes, "type", "string")
+				
 				key$ = MapGet(e[i].attributes, "name")
 				value$ = MapGet(e[i].attributes, "value")
 				type$ = MapGet(e[i].attributes, "type")
-				if type$ = NULL_VAL then type$ = TMX_TYPE_STRING // prop default type is str
 				
 				select StaPeekByIdx(xsta, 3) // take 3rd top item from current xml stack
 					case "map"
