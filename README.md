@@ -4,7 +4,7 @@
 
  Note: Function names beginning with "_" e.g. like _DoSomething are internal ones, don't use them directly
 
- Features:
+## Features:
 	+ Boolean constants
 	+ Low performance string key/value maps + wrappers for float and integers
 	+ Low performance string value sets + wrappers for float and integers	
@@ -13,14 +13,14 @@
 	+ Logging
 	+ TGF Trivial Graph Format parser
 	+ Simple XML parser (Partial support)
-	+ Tiled (map editor) TMX file parser (Partial support, read TMX support specification* for more info) *
+	+ Tiled (map editor) TMX file parser (Partial support, read TMX support specification* for more info)
 	+ Stack for string values
 	+ Generate UUIDs
 	+ Yarn document parser
-	+ DialogTree D3 support http://sol.gfxile.net/d3/ **
+	+ DialogTree D3 support http://sol.gfxile.net/d3/
 
 
- * Use Tiled 1.1.0 with following export settings:
+ Use Tiled 1.1.0 with following export settings:
 	Format: .tmx
 	Orientation: Orthogonal
 	Tile layer format: CSV
@@ -32,5 +32,5 @@
 	  - Wang sets
 	  - Chunks
 
- ** D3 Studio 110808 ALPHA supported
+  D3 Studio 110808 ALPHA supported
 	 Format: XML 
