@@ -1,4 +1,4 @@
-// version 0.9 13 13 Mar 2022
+// version 0.9.3 23 Mar 2022
 
 /*
 
@@ -212,6 +212,25 @@ endfunction set.values.length+1
  Type guess functionality for string content
 */
 // TRUE if character for given ascii is 0-9
+	
+function IsStrNumber(str$)
+	for i = 1 to len(str$)
+		if IsNumber(asc(mid(str$, i, 1))) = FALSE then exitfunction FALSE
+	next
+endfunction TRUE
+
+function IsStrAlpha(str$)
+	for i = 1 to len(str$)
+		if IsAlpha(asc(mid(str$, i, 1))) = FALSE then exitfunction FALSE
+	next
+endfunction TRUE
+
+function IsStrAlphaNumeric(str$)
+	for i = 1 to len(str$)
+		if IsAlphaNumeric(asc(mid(str$, i, 1))) = FALSE then exitfunction FALSE
+	next
+endfunction TRUE	
+	
 function IsNumber(ascii)
 	if ascii >= 48 and ascii <= 57 then exitfunction TRUE
 endfunction FALSE
@@ -1183,7 +1202,8 @@ function D3ParseDeck(content$)
 		endif
 	next
 	
-	trace(BACLOG, D3Deck2XML(deck))
+	// logging for bacure development use
+	//trace(BACLOG, D3Deck2XML(deck))
 
 endfunction deck
 				
@@ -1605,7 +1625,7 @@ endfunction defval#
 /*
  * This src used only to convert some Types like TMX* back to XML strings for validation purposes
  */
-#include "bacure2xml.agc"
+//#include "bacure2xml.agc"
 
 function TmxParseFile(filename$)
 	m as TmxMap
@@ -1892,7 +1912,8 @@ function TmxParse(data$)
 		endif
 	next
 	
-	trace(BACLOG, TmxMap2XML(m))
+	// logging for bacure development use
+	//trace(BACLOG, TmxMap2XML(m))
 
 endfunction m
 
